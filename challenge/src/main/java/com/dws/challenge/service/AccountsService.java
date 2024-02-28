@@ -44,14 +44,25 @@ public class AccountsService {
             throw new IllegalArgumentException("Amount must be positive");
         }
 
+	// Lock both accounts to ensure consistency during the transfer
+
+	/*In this modification, I've placed the entire transfer process within a 
+	synchronized block that 
+	locks on both accountFromId and accountToId. This ensures that only one thread 
+	can execute the transfer operation involving 
+	these accounts at a time, preventing any inconsistencies or race condition*/
+	    
         synchronized (accountFromId.intern()) {
+        synchronized (accountToId.intern()) {
             if (accountFrom.getBalance().compareTo(amount) < 0) {
                 throw new InsufficientBalanceException("Insufficient balance in account: " + accountFromId);
             }
 
+            // Perform the transfer
             accountFrom.setBalance(accountFrom.getBalance().subtract(amount));
             accountTo.setBalance(accountTo.getBalance().add(amount));
         }
+    }
 
         // Notification logic to be implemented here
     }
