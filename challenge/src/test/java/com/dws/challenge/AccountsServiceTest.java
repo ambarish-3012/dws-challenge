@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import java.lang.*;
 
 class AccountsServiceTest {
 
@@ -58,6 +59,37 @@ class AccountsServiceTest {
         assertThrows(InsufficientBalanceException.class, () ->
                 accountsService.transferMoney("1", "2", BigDecimal.valueOf(150))
         );
+    }
+
+    @Test
+    void testTransferMoney_ConcurrentTransfers() throws InterruptedException {
+        Account accountFrom = new Account("1");
+        accountFrom.setBalance(BigDecimal.valueOf(100));
+
+        Account accountTo = new Account("2");
+        accountTo.setBalance(BigDecimal.valueOf(50));
+
+        when(accountsRepository.getAccount("1")).thenReturn(accountFrom);
+        when(accountsRepository.getAccount("2")).thenReturn(accountTo);
+
+        // Create two threads performing transfers concurrently
+        Thread thread1 = new Thread(() -> {
+            accountsService.transferMoney("1", "2", BigDecimal.valueOf(50));
+        });
+
+        Thread thread2 = new Thread(() -> {
+            accountsService.transferMoney("2", "1", BigDecimal.valueOf(30));
+        });
+
+        thread1.start();
+        thread2.start();
+
+        thread1.join();
+        thread2.join();
+
+        // Verify balances after concurrent transfers
+        assertEquals(BigDecimal.valueOf(50), accountFrom.getBalance());
+        assertEquals(BigDecimal.valueOf(70), accountTo.getBalance());
     }
 
 }
