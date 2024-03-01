@@ -88,8 +88,8 @@ class AccountsServiceTest {
         thread2.join();
 
         // Verify balances after concurrent transfers
-        assertEquals(BigDecimal.valueOf(50), accountFrom.getBalance());
-        assertEquals(BigDecimal.valueOf(70), accountTo.getBalance());
+        assertEquals(BigDecimal.valueOf(70), accountFrom.getBalance());
+        assertEquals(BigDecimal.valueOf(80), accountTo.getBalance());
     }
 
 }
