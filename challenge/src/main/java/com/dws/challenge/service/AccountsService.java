@@ -20,49 +20,51 @@ public class AccountsService {
     public AccountsService(AccountsRepository accountsRepository) {
         this.accountsRepository = accountsRepository;
     }
-
+	
 	/*Mark the methods transactional so that any database operations performed within the marked method will be executed within a transaction. If the 	
     transaction is successful, the changes will be committed to the database. If an error occurs and the transaction is rolled back, the changes will not be 	
     persisted in the database*/
-
+	
     @Transactional
     public void createAccount(Account account) {
         this.accountsRepository.createAccount(account);
     }
 
-
     @Transactional
     public void transferMoney(String accountFromId, String accountToId, BigDecimal amount) {
-        Account accountFrom = accountsRepository.getAccount(accountFromId);
-        Account accountTo = accountsRepository.getAccount(accountToId);
+        Account accountFrom;
+        Account accountTo;
+		
+	/*To prevent potential deadlocks, we can use a consistent order of locking when transferring money between accounts. 
+	Additionally, we can implement optimistic locking to handle concurrent updates to account balances more efficiently*/
 
-        if (accountFrom == null || accountTo == null) {
-            throw new IllegalArgumentException("One or both accounts do not exist");
-        }
+        // Define order of locking based on account IDs
+        String lock1 = accountFromId.compareTo(accountToId) < 0 ? accountFromId : accountToId;
+        String lock2 = accountFromId.compareTo(accountToId) < 0 ? accountToId : accountFromId;
 
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be positive");
-        }
+		
+        synchronized (lock1.intern()) {
+            synchronized (lock2.intern()) {
+                accountFrom = accountsRepository.getAccount(accountFromId);
+                accountTo = accountsRepository.getAccount(accountToId);
 
-	// Lock both accounts to ensure consistency during the transfer
+                if (accountFrom == null || accountTo == null) {
+                    throw new IllegalArgumentException("One or both accounts do not exist");
+                }
 
-	/*In this modification, I've placed the entire transfer process within a 
-	synchronized block that 
-	locks on both accountFromId and accountToId. This ensures that only one thread 
-	can execute the transfer operation involving 
-	these accounts at a time, preventing any inconsistencies or race condition*/
-	    
-        synchronized (accountFromId.intern()) {
-        synchronized (accountToId.intern()) {
-            if (accountFrom.getBalance().compareTo(amount) < 0) {
-                throw new InsufficientBalanceException("Insufficient balance in account: " + accountFromId);
+                if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new IllegalArgumentException("Amount must be positive");
+                }
+
+                if (accountFrom.getBalance().compareTo(amount) < 0) {
+                    throw new InsufficientBalanceException("Insufficient balance in account: " + accountFromId);
+                }
+
+                // Perform the transfer
+                accountFrom.setBalance(accountFrom.getBalance().subtract(amount));
+                accountTo.setBalance(accountTo.getBalance().add(amount));
             }
-
-            // Perform the transfer
-            accountFrom.setBalance(accountFrom.getBalance().subtract(amount));
-            accountTo.setBalance(accountTo.getBalance().add(amount));
         }
-    }
 
         // Notification logic to be implemented here
     }
